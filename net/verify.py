@@ -10,7 +10,8 @@ import socket
 import requests
 
 headers = {
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 '
+                  'Safari/537.36',
 }
 
 
@@ -25,67 +26,60 @@ def get_host_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
-        ip = s.getsockname()[0]
+        ip = s.getsockname()[0].replace('\n', '')
     except Exception:
         return None
 
     s.close()
-    ip = ip.replace('\n', '')
     return ip
 
 
-def net_verify():
+def net_verify(account, password):
     """
     Verify network
     :return: Is verified
     :rtype: bool
     """
 
-    # username password
-    account = ''
-    password = None
     ip = get_host_ip()
 
     url = 'https://portal2.cjlu.edu.cn:802/eportal/portal/login'
     params = {
         'callback': 'dr1003',
+        'login_method': '1',
         'user_account': ',0,__' + account,
         'user_password': password,
         'wlan_user_ip': ip,
-        'wlan_user_ipv6': '',
+        'wlan_user_ipv6': None,
         'wlan_user_mac': '000000000000',
-        'wlan_ac_ip': '',
-        'wlan_ac_name': '',
+        'wlan_ac_ip': None,
+        'wlan_ac_name': None,
         'jsVersion': '4.2.1',
         'terminal_type': '1',
-        'v': '7420',
-        'lang': 'en'
+        'lang': 'zh-cn',
+        'v': '9780',
     }
 
     try:
-        resp = requests.post(url=url, headers=headers, params=params)
-        return True
+        resp = requests.get(url=url, headers=headers, params=params)
+        return resp.status_code == 200
     except requests.exceptions.ConnectionError:
         return False
 
 
-def vpn_verify():
+def vpn_verify(name, username, password):
     """
     Verify L2TP vpn
     :return: Is verified
     :rtype: bool
     """
 
-    name = None
-    username = None
-    password = None
-
     os.system('rasdial {} {} {}'.format(name, username, password))
 
     return ping()
 
 
-def ping(url='http://baidu.com'):
+def ping(url='https://baidu.com'):
     """
     Ping an url
     :param url: Target url
