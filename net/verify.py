@@ -37,6 +37,10 @@ def get_host_ip():
 def net_verify(account, password):
     """
     Verify network
+    :param account: Account
+    :type account: str
+    :param password: Password
+    :type password: str
     :return: Is verified
     :rtype: bool
     """
@@ -67,9 +71,19 @@ def net_verify(account, password):
         return False
 
 
+def net_disconnect():
+    pass
+
+
 def vpn_verify(name, username, password):
     """
-    Verify L2TP vpn
+    Verify L2TP vpn connection
+    :param name: VPN name
+    :type name: str
+    :param username: Username
+    :type username: str
+    :param password: Password
+    :type password: str
     :return: Is verified
     :rtype: bool
     """
@@ -77,6 +91,15 @@ def vpn_verify(name, username, password):
     os.system('rasdial {} {} {}'.format(name, username, password))
 
     return ping()
+
+
+def vpn_disconnect(name):
+    """
+    Disconnect L2TP vpn
+    :param name: VPN name
+    :type name: str
+    """
+    os.system('rasdial {} /DISCONNECT'.format(name))
 
 
 def ping(url='https://baidu.com'):
@@ -90,7 +113,7 @@ def ping(url='https://baidu.com'):
 
     # noinspection PyBroadException
     try:
-        resp = requests.get(url=url, headers=headers, timeout=5)
+        resp = requests.get(url=url, headers=headers, timeout=3)
         return resp.status_code == 200
     except Exception:
         return False

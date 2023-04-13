@@ -4,48 +4,85 @@
 @Author  : Charles Stark
 @Date    : 2023/4/12 11:16
 """
+import configparser
+import os.path
+import sys
 
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 
+from net.verify import *
+
 
 class InputWindow(QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, conf_path, parent=None):
         super(InputWindow, self).__init__(parent)
 
         layout = QFormLayout()
 
-        self.label1 = QLabel()
-        self.label1.setText('校园网')
+        font = self.font()
+        font.setBold(True)
+        font.setPointSize(10)
+
+        self.label1 = QLabel('校园网')
+        self.label1.setFont(font)
         layout.addRow(self.label1)
 
-        self.label2 = QLabel()
-        self.label2.setText('用户名')
+        self.label2 = QLabel('用户名')
         self.lineEdit2 = QLineEdit()
+        self.lineEdit2.setFixedSize(290, 25)
         layout.addRow(self.label2, self.lineEdit2)
 
-        self.label3 = QLabel()
-        self.label3.setText('密码')
+        self.label3 = QLabel('密码')
         self.lineEdit3 = QLineEdit()
+        self.lineEdit3.setEchoMode(QLineEdit.echoMode(self.lineEdit3).Password)
+        self.lineEdit3.setFixedSize(290, 25)
         layout.addRow(self.label3, self.lineEdit3)
 
-        self.label4 = QLabel()
-        self.label4.setText('VPN')
+        self.label4 = QLabel('VPN')
+        self.label4.setFont(font)
         layout.addRow(self.label4)
 
-        self.label5 = QLabel()
-        self.label5.setText('用户名')
+        self.label5 = QLabel('用户名')
         self.lineEdit5 = QLineEdit()
+        self.lineEdit5.setFixedSize(290, 25)
         layout.addRow(self.label5, self.lineEdit5)
 
-        self.label6 = QLabel()
-        self.label6.setText('密码')
+        self.label6 = QLabel('密码')
         self.lineEdit6 = QLineEdit()
+        self.lineEdit6.setEchoMode(QLineEdit.echoMode(self.lineEdit6).Password)
+        self.lineEdit6.setFixedSize(290, 25)
         layout.addRow(self.label6, self.lineEdit6)
+
+        self.button = QPushButton('确定')
+        self.button.setFixedHeight(32)
+        self.button.released.connect(self.save_info)
+        layout.addRow(self.button)
 
         self.setLayout(layout)
         self.setWindowTitle('添加账户')
+        self.setFixedSize(360, 222)
+
+        self.conf_path = conf_path
+
+    def save_info(self):
+        if self.lineEdit2.text().strip() == '' or self.lineEdit3.text().strip() == '' or \
+                self.lineEdit5.text().strip() == '' or self.lineEdit6.text().strip() == '':
+            QMessageBox.critical(QWidget(), '输入错误', '输入不能为空')
+            return
+
+        conf = configparser.ConfigParser()
+
+        conf.add_section('net')
+        conf.set('net', 'username', self.lineEdit2.text())
+        conf.set('net', 'password', self.lineEdit3.text())
+        conf.add_section('vpn')
+        conf.set('vpn', 'username', self.lineEdit5.text())
+        conf.set('vpn', 'password', self.lineEdit6.text())
+        conf.write(open(self.conf_path, 'w'))
+
+        self.close()
 
 
 class Tray(QSystemTrayIcon):
@@ -56,6 +93,9 @@ class Tray(QSystemTrayIcon):
         self.app = _app
         self.on_icon = QIcon('./asset/on.png')
         self.off_icon = QIcon('./asset/off.png')
+        self.tick_icon = QIcon('./asset/tick.png')
+
+        self.is_connected = False
 
         self.setIcon(self.off_icon)
         self.setVisible(True)
@@ -67,6 +107,8 @@ class Tray(QSystemTrayIcon):
         self.menu.addAction(self.action_input_info)
 
         self.action_connect = QAction('手动连接')
+        self.action_connect.setIcon(self.tick_icon)
+        self.action_connect.setIconVisibleInMenu(self.is_connected)
         self.action_connect.triggered.connect(self.connect)
         self.menu.addAction(self.action_connect)
 
@@ -90,13 +132,39 @@ class Tray(QSystemTrayIcon):
 
         self.setContextMenu(self.menu)
 
-        self.window = InputWindow()
+        self.conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config.ini')
+        self.window = InputWindow(self.conf_path)
 
     def input_info(self):
         self.window.show()
 
     def connect(self):
-        pass
+        if self.is_connected:
+            # 断开连接
+            if ping():
+                # 有网
+                vpn_disconnect('l2tp')
+
+            self.action_connect.setIconVisibleInMenu(False)
+            self.action_connect.setText('手动连接')
+            self.is_connected = False
+        else:
+            # 手动连接
+            if not ping():
+                # 没网
+                conf = configparser.ConfigParser()
+                conf.read(self.conf_path, encoding='utf-8')
+
+                if not net_verify(conf['net']['username'], conf['net']['password']):
+                    QMessageBox.critical(QWidget(), '连接失败', '请检查校园网用户名和密码并重试')
+                    return
+                elif not vpn_verify('l2tp', conf['vpn']['username'], conf['vpn']['password']):
+                    QMessageBox.critical(QWidget(), '连接失败', '请检查VPN设置并重试')
+                    return
+
+            self.action_connect.setIconVisibleInMenu(True)
+            self.action_connect.setText('断开连接')
+            self.is_connected = True
 
     def stay_connected(self):
         pass
@@ -119,4 +187,4 @@ if __name__ == '__main__':
 
     tray = Tray(app)
 
-    app.exec()
+    sys.exit(app.exec())
