@@ -152,6 +152,7 @@ class Tray(QSystemTrayIcon):
             # 手动连接
             if not ping():
                 # 没网
+                # TODO check if the file exists
                 conf = configparser.ConfigParser()
                 conf.read(self.conf_path, encoding='utf-8')
 
